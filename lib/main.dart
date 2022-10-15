@@ -1,4 +1,6 @@
+import 'package:dynamic_route/router.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
   runApp(const MyApp());
@@ -9,38 +11,33 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Dynamic route',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.grey,
-        platform: TargetPlatform.iOS,
-      ),
-      home: const HomeView(),
+      theme: ThemeData.dark().copyWith(primaryColor: Colors.grey),
+      routerConfig: router,
     );
   }
 }
 
-class HomeView extends StatefulWidget {
-  const HomeView({Key? key}) : super(key: key);
+class AppScaffold extends StatefulWidget {
+  const AppScaffold({Key? key, required this.child}) : super(key: key);
+
+  final Widget child;
 
   @override
-  State<HomeView> createState() => _HomeViewState();
+  State<AppScaffold> createState() => _AppScaffoldState();
 }
 
-class _HomeViewState extends State<HomeView> {
-  int currentIndex = 0;
-
+class _AppScaffoldState extends State<AppScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Billion Dollar App')),
-      body: _buildBody(),
+      body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (value) {
-          setState(() => currentIndex = value);
-        },
+        currentIndex: _calculateSelectedIndex(context),
+        onTap: onTap,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
@@ -51,16 +48,31 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildBody() {
-    switch (currentIndex) {
+  int _calculateSelectedIndex(BuildContext context) {
+    final GoRouter route = GoRouter.of(context);
+    final String location = route.location;
+    if (location.startsWith('/home')) {
+      return 0;
+    }
+    if (location.startsWith('/search')) {
+      return 1;
+    }
+    if (location.startsWith('/account')) {
+      return 2;
+    }
+    return 0;
+  }
+
+  void onTap(int value) {
+    switch (value) {
       case 0:
-        return const Center(child: Text('Home'));
+        return context.go('/home');
       case 1:
-        return const Center(child: Text('Search'));
+        return context.go('/search');
       case 2:
-        return const Center(child: Text('Account'));
+        return context.go('/account');
       default:
-        return const Center(child: Text('Default'));
+        return context.go('/home');
     }
   }
 }
