@@ -1,9 +1,20 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:dynamic_route/router.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:collection/collection.dart' show IterableExtension;
+
 void main() {
   runApp(const MyApp());
+}
+
+class AppState {
+  static Map<int, String> mapScreen = {};
+  static ValueNotifier<bool> showNavBar = ValueNotifier(false);
+  static List<BottomNavigationBarItem> navigationBarItems = [];
 }
 
 class MyApp extends StatelessWidget {
@@ -31,48 +42,94 @@ class AppScaffold extends StatefulWidget {
 
 class _AppScaffoldState extends State<AppScaffold> {
   @override
+  void initState() {
+    buildLayout();
+    super.initState();
+  }
+
+  Future<void> buildLayout() async {
+    try {
+      final response = await Dio().get(
+          'https://gist.githubusercontent.com/snehmehta/49657051b2ecb730702af116c82e3cc4/raw/36f6b5d4cad3b6c04fa45f7116798677454c2123/config.json');
+      final data = jsonDecode(response.data);
+
+      parseLayout(data);
+    } on Exception catch (error, _) {
+      // errorTracker.captureError(error, stackTrace);
+      setDefaultLayout();
+    }
+
+    AppState.showNavBar.value = true;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Billion Dollar App')),
-      body: widget.child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _calculateSelectedIndex(context),
-        onTap: onTap,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_box), label: 'Account'),
-        ],
-      ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppState.showNavBar,
+      builder: (context, showBar, child) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Billion Dollar App')),
+          body: widget.child,
+          bottomNavigationBar: !showBar
+              ? null
+              : BottomNavigationBar(
+                  onTap: (index) => context.go(AppState.mapScreen[index]!),
+                  items: AppState.navigationBarItems,
+                  currentIndex: _calculateSelectedIndex(context),
+                ),
+        );
+      },
     );
   }
 
   int _calculateSelectedIndex(BuildContext context) {
     final GoRouter route = GoRouter.of(context);
     final String location = route.location;
-    if (location.startsWith('/home')) {
-      return 0;
-    }
-    if (location.startsWith('/search')) {
-      return 1;
-    }
-    if (location.startsWith('/account')) {
-      return 2;
-    }
-    return 0;
-  }
 
-  void onTap(int value) {
-    switch (value) {
-      case 0:
-        return context.go('/home');
-      case 1:
-        return context.go('/search');
-      case 2:
-        return context.go('/account');
-      default:
-        return context.go('/home');
-    }
+    final index = AppState.mapScreen.keys.firstWhereOrNull(
+      (element) => AppState.mapScreen[element] == location,
+    );
+
+    return index ?? 0;
   }
+}
+
+void parseLayout(data) {
+  int counter = 0;
+
+  final navItems = data['navigation'] as List;
+
+  for (var element in navItems) {
+    AppState.mapScreen[counter] = element['action']['location'];
+
+    final item = BottomNavigationBarItem(
+      icon: Icon(
+          IconData(int.parse(element['icon']), fontFamily: 'MaterialIcons')),
+      label: element['label'],
+    );
+
+    AppState.navigationBarItems.add(item);
+    counter++;
+  }
+}
+
+void setDefaultLayout() async {
+  AppState.mapScreen[0] = '/home';
+  AppState.mapScreen[1] = '/search';
+  AppState.mapScreen[2] = '/search';
+
+  AppState.navigationBarItems.addAll([
+    const BottomNavigationBarItem(
+      label: 'Home',
+      icon: Icon(IconData(58136, fontFamily: 'MaterialIcons')),
+    ),
+    const BottomNavigationBarItem(
+      label: 'Search',
+      icon: Icon(IconData(58727, fontFamily: 'MaterialIcons')),
+    ),
+    const BottomNavigationBarItem(
+      label: 'Account',
+      icon: Icon(IconData(57410, fontFamily: 'MaterialIcons')),
+    ),
+  ]);
 }
